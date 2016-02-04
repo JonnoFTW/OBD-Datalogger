@@ -1,0 +1,26 @@
+<menu xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:app="http://schemas.android.com/apk/res-auto"
+    xmlns:tools="http://schemas.android.com/tools"
+    tools:context="com.jonathan.obd_bt.MainActivity">
+    <item
+        android:title="Output"
+        android:id="@+id/numberSpinner"
+        android:actionLayout="@layout/spin_number"
+        app:showAsAction="always">
+        <menu>
+
+        </menu>
+    </item>
+    <item
+        android:id="@+id/action_stop"
+        android:orderInCategory="100"
+        android:title="@string/action_stop"
+        android:icon="@android:drawable/ic_menu_close_clear_cancel"
+        app:showAsAction="always" />
+    <item
+        android:id="@+id/action_connect"
+        android:orderInCategory="100"
+        android:title="@string/action_settings"
+        android:icon="@android:drawable/ic_menu_view"
+        app:showAsAction="always" />
+</menu>
