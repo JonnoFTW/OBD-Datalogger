@@ -11,11 +11,13 @@
     app:layout_behavior="@string/appbar_scrolling_view_behavior"
     tools:context="com.jonathan.obd_bt.MainActivity"
     tools:showIn="@layout/activity_main">
+
     <ScrollView
         android:id="@+id/scroll"
         android:layout_width="match_parent"
         android:layout_height="match_parent"
         android:fillViewport="true">
+
         <TextView
             android:id="@+id/tv_log"
             android:layout_width="wrap_content"
@@ -27,8 +29,34 @@
         android:id="@+id/chart"
         android:layout_width="match_parent"
         android:layout_height="match_parent"
-        android:visibility="gone"
-        />
+        android:visibility="gone" />
 
-
+    <LinearLayout
+        android:layout_width="wrap_content"
+        android:background="@color/colorPrimaryDark"
+        android:layout_alignParentRight="true"
+        android:layout_alignParentBottom="true"
+        android:orientation="vertical"
+        android:layout_height="wrap_content"
+        android:padding="5dp"
+        android:layout_margin="5dp">
+        <TextView
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:text="GPS: "
+            android:textColor="#fefefe"
+            android:id="@+id/gps_status"/>
+        <TextView
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:textColor="#fefefe"
+            android:text="OBD: "
+            android:id="@+id/obd_status"/>
+        <TextView
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:textColor="#fefefe"
+            android:text="SD: "
+            android:id="@+id/sd_status"/>
+    </LinearLayout>
 </RelativeLayout>

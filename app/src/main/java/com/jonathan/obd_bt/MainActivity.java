@@ -31,14 +31,20 @@ import com.github.mikephil.charting.utils.ColorTemplate;
 
 import org.apache.commons.lang3.StringUtils;
 
+import java.io.BufferedOutputStream;
 import java.io.BufferedReader;
+import java.io.File;
+import java.io.FileOutputStream;
 import java.io.IOException;
 import java.io.InputStream;
 import java.io.InputStreamReader;
 import java.io.OutputStream;
+import java.net.URI;
 import java.util.ArrayList;
 import java.util.Arrays;
+import java.util.Calendar;
 import java.util.Collections;
+import java.util.Date;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
@@ -47,6 +53,7 @@ import java.util.UUID;
 import java.util.concurrent.locks.Lock;
 
 public class MainActivity extends AppCompatActivity {
+    private static final String TAG = "MainActivity";
     TextView mTextView;
     OBDBluetooth device;
     private static int REQUEST_ENABLE_BT = 1;
@@ -59,6 +66,7 @@ public class MainActivity extends AppCompatActivity {
     HashMap<String, List<Integer>> mODBData = new HashMap<>();
     LineChart mChart;
     private static int POINTS_TO_SHOW = 120;
+    TextView mGPSStatus, mOBDStatus, mSDStatus;
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
@@ -72,6 +80,9 @@ public class MainActivity extends AppCompatActivity {
         mChart = (LineChart) findViewById(R.id.chart);
         mChart.setData(mLineData);
         mChart.setTouchEnabled(false);
+        mOBDStatus = (TextView) findViewById(R.id.obd_status);
+        mGPSStatus = (TextView) findViewById(R.id.gps_status);
+        mSDStatus  = (TextView) findViewById(R.id.sd_status);
         if (mBluetoothAdapter == null) {
             // Device does not support Bluetooth
             mTextView.setText("Device does not support bluetooth");
@@ -83,7 +94,8 @@ public class MainActivity extends AppCompatActivity {
         }
     }
 
-    private void setTopMenu() {
+    private void resetMenu() {
+        mPIDMenu.clear();
         mPIDMenu.add(0, 0, Menu.NONE, "Readings");
     }
 
@@ -97,8 +109,8 @@ public class MainActivity extends AppCompatActivity {
         mMenu = menu;
         mPIDItem = menu.findItem(R.id.numberSpinner);
         mPIDMenu = mPIDItem.getSubMenu();
+        resetMenu();
         mPIDMenu.setHeaderTitle("PID");
-        setTopMenu();
         return true;
     }
 
@@ -127,6 +139,37 @@ public class MainActivity extends AppCompatActivity {
                 device.cancel();
                 device = null;
             }
+        } else if(id == R.id.action_export) {
+            try {
+                File file = new File(getExternalFilesDir(null), "obd_log_file"+ (new Date()).getTime()+".csv");
+                Log.i(TAG, "File saving to: "+file.getAbsoluteFile());
+                OutputStream out = new FileOutputStream(file);
+                out.write("time(diff),pid,value\n".getBytes());
+                for (String line: mTextView.getText().toString().split("\n")) {
+                    String[] pieces = line.split(",");
+                    if(pieces.length >= 3) {
+                        pieces[1] = getPIDName(Integer.parseInt(pieces[1], 16));
+                        out.write((StringUtils.join(pieces, ",")+ "\n").getBytes());
+                    }
+                }
+                out.close();
+                Intent emailIntent = new Intent(Intent.ACTION_SEND);
+                emailIntent.setType("text/plain");
+                // the attachment
+
+                emailIntent.putExtra(Intent.EXTRA_STREAM, Uri.fromFile(file));
+                emailIntent.putExtra(android.content.Intent.EXTRA_EMAIL, new String[]{"jonmac1@gmail.com"});
+                emailIntent.putExtra(android.content.Intent.EXTRA_TEXT, "readings from the logger");
+
+                // the mail subject
+                emailIntent.putExtra(Intent.EXTRA_SUBJECT, "OBD Logger App output");
+                startActivity(Intent.createChooser(emailIntent , "Send email..."));
+            } catch (IOException e) {
+                e.printStackTrace();
+                Log.i(TAG, e.getMessage());
+            }
+
+            return true;
         } else if (id == 0) {
             // turn plotting off and show the text log
             isPlotting = false;
@@ -134,6 +177,7 @@ public class MainActivity extends AppCompatActivity {
             mChart.setVisibility(View.GONE);
             updateLog("Closing plot");
             isPlotting = false;
+            return true;
         } else if (mKeyIds.containsKey(id)) {
             // turn plotting on
             mPlotKey = mKeyIds.get(id);
@@ -170,6 +214,9 @@ public class MainActivity extends AppCompatActivity {
             if (device != null) {
                 device.cancel();
                 device = null;
+                mLineData.clearValues();
+                mODBData.clear();
+                resetMenu();
             }
             final ArrayList<CharSequence> items = new ArrayList<>(8);
             mBluetoothKnown = mBluetoothAdapter.getBondedDevices();
@@ -278,7 +325,65 @@ public class MainActivity extends AppCompatActivity {
         super.onStop();
 
     }
+    private static String getPIDName(int pid) {
+        SparseArray<String> arr = new SparseArray<>(256);
+        arr.put(0x104,"PID_ENGINE_LOAD");
+        arr.put(0x105,"PID_COOLANT_TEMP");
+        arr.put(0x106,"PID_SHORT_TERM_FUEL_TRIM_1");
+        arr.put(0x107,"PID_LONG_TERM_FUEL_TRIM_1");
+        arr.put(0x108,"PID_SHORT_TERM_FUEL_TRIM_2");
+        arr.put(0x109,"PID_LONG_TERM_FUEL_TRIM_2");
+        arr.put(0x10A,"PID_FUEL_PRESSURE");
+        arr.put(0x10B,"PID_INTAKE_MAP");
+        arr.put(0x10C,"PID_RPM");
+        arr.put(0x10D,"PID_SPEED");
+        arr.put(0x10E,"PID_TIMING_ADVANCE");
+        arr.put(0x10F,"PID_INTAKE_TEMP");
+        arr.put(0x110,"PID_MAF_FLOW");
+        arr.put(0x111,"PID_THROTTLE");
+        arr.put(0x11E,"PID_AUX_INPUT");
+        arr.put(0x11F,"PID_RUNTIME");
+        arr.put(0x121,"PID_DISTANCE_WITH_MIL");
+        arr.put(0x12C,"PID_COMMANDED_EGR");
+        arr.put(0x12D,"PID_EGR_ERROR");
+        arr.put(0x12E,"PID_COMMANDED_EVAPORATIVE_PURGE");
+        arr.put(0x12F,"PID_FUEL_LEVEL");
+        arr.put(0x130,"PID_WARMS_UPS");
+        arr.put(0x131,"PID_DISTANCE");
+        arr.put(0x132,"PID_EVAP_SYS_VAPOR_PRESSURE");
+        arr.put(0x133,"PID_BAROMETRIC");
+        arr.put(0x13C,"PID_CATALYST_TEMP_B1S1");
+        arr.put(0x13D,"PID_CATALYST_TEMP_B2S1");
+        arr.put(0x13E,"PID_CATALYST_TEMP_B1S2");
+        arr.put(0x13F,"PID_CATALYST_TEMP_B2S2");
+        arr.put(0x142,"PID_CONTROL_MODULE_VOLTAGE");
+        arr.put(0x143,"PID_ABSOLUTE_ENGINE_LOAD");
+        arr.put(0x145,"PID_RELATIVE_THROTTLE_POS");
+        arr.put(0x146,"PID_AMBIENT_TEMP");
+        arr.put(0x147,"PID_ABSOLUTE_THROTTLE_POS_B");
+        arr.put(0x148,"PID_ABSOLUTE_THROTTLE_POS_C");
+        arr.put(0x149,"PID_ACC_PEDAL_POS_D");
+        arr.put(0x14A,"PID_ACC_PEDAL_POS_E");
+        arr.put(0x14B,"PID_ACC_PEDAL_POS_F");
+        arr.put(0x14C,"PID_COMMANDED_THROTTLE_ACTUATOR");
+        arr.put(0x14D,"PID_TIME_WITH_MIL");
+        arr.put(0x14E,"PID_TIME_SINCE_CODES_CLEARED");
+        arr.put(0x152,"PID_ETHANOL_FUEL");
+        arr.put(0x159,"PID_FUEL_RAIL_PRESSURE");
+        arr.put(0x15B,"PID_HYBRID_BATTERY_PERCENTAGE");
+        arr.put(0x15C,"PID_ENGINE_OIL_TEMP");
+        arr.put(0x15D,"PID_FUEL_INJECTION_TIMING");
+        arr.put(0x15E,"PID_ENGINE_FUEL_RATE");
+        arr.put(0x161,"PID_ENGINE_TORQUE_DEMANDED");
+        arr.put(0x162,"PID_ENGINE_TORQUE_PERCENTAGE");
+        arr.put(0x163,"PID_ENGINE_REF_TORQUE");
+        String out = arr.get(pid);
+        if(out != null)
+            return arr.get(pid).substring(4);
+        else
+            return Integer.toString(pid);
 
+    }
     class OBDBluetooth {
         private ConnectedThread mConnectedThread;
         private ConnectThread mConnectThread;
@@ -447,84 +552,33 @@ public class MainActivity extends AppCompatActivity {
             mmInStream = tmpIn;
 
         }
-        private  String getPIDName(int pid) {
-            SparseArray<String> arr = new SparseArray<>(256);
-            arr.put(0x104,"PID_ENGINE_LOAD");
-            arr.put(0x105,"PID_COOLANT_TEMP");
-            arr.put(0x106,"PID_SHORT_TERM_FUEL_TRIM_1");
-            arr.put(0x107,"PID_LONG_TERM_FUEL_TRIM_1");
-            arr.put(0x108,"PID_SHORT_TERM_FUEL_TRIM_2");
-            arr.put(0x109,"PID_LONG_TERM_FUEL_TRIM_2");
-            arr.put(0x10A,"PID_FUEL_PRESSURE");
-            arr.put(0x10B,"PID_INTAKE_MAP");
-            arr.put(0x10C,"PID_RPM");
-            arr.put(0x10D,"PID_SPEED");
-            arr.put(0x10E,"PID_TIMING_ADVANCE");
-            arr.put(0x10F,"PID_INTAKE_TEMP");
-            arr.put(0x110,"PID_MAF_FLOW");
-            arr.put(0x111,"PID_THROTTLE");
-            arr.put(0x11E,"PID_AUX_INPUT");
-            arr.put(0x11F,"PID_RUNTIME");
-            arr.put(0x121,"PID_DISTANCE_WITH_MIL");
-            arr.put(0x12C,"PID_COMMANDED_EGR");
-            arr.put(0x12D,"PID_EGR_ERROR");
-            arr.put(0x12E,"PID_COMMANDED_EVAPORATIVE_PURGE");
-            arr.put(0x12F,"PID_FUEL_LEVEL");
-            arr.put(0x130,"PID_WARMS_UPS");
-            arr.put(0x131,"PID_DISTANCE");
-            arr.put(0x132,"PID_EVAP_SYS_VAPOR_PRESSURE");
-            arr.put(0x133,"PID_BAROMETRIC");
-            arr.put(0x13C,"PID_CATALYST_TEMP_B1S1");
-            arr.put(0x13D,"PID_CATALYST_TEMP_B2S1");
-            arr.put(0x13E,"PID_CATALYST_TEMP_B1S2");
-            arr.put(0x13F,"PID_CATALYST_TEMP_B2S2");
-            arr.put(0x142,"PID_CONTROL_MODULE_VOLTAGE");
-            arr.put(0x143,"PID_ABSOLUTE_ENGINE_LOAD");
-            arr.put(0x145,"PID_RELATIVE_THROTTLE_POS");
-            arr.put(0x146,"PID_AMBIENT_TEMP");
-            arr.put(0x147,"PID_ABSOLUTE_THROTTLE_POS_B");
-            arr.put(0x148,"PID_ABSOLUTE_THROTTLE_POS_C");
-            arr.put(0x149,"PID_ACC_PEDAL_POS_D");
-            arr.put(0x14A,"PID_ACC_PEDAL_POS_E");
-            arr.put(0x14B,"PID_ACC_PEDAL_POS_F");
-            arr.put(0x14C,"PID_COMMANDED_THROTTLE_ACTUATOR");
-            arr.put(0x14D,"PID_TIME_WITH_MIL");
-            arr.put(0x14E,"PID_TIME_SINCE_CODES_CLEARED");
-            arr.put(0x152,"PID_ETHANOL_FUEL");
-            arr.put(0x159,"PID_FUEL_RAIL_PRESSURE");
-            arr.put(0x15B,"PID_HYBRID_BATTERY_PERCENTAGE");
-            arr.put(0x15C,"PID_ENGINE_OIL_TEMP");
-            arr.put(0x15D,"PID_FUEL_INJECTION_TIMING");
-            arr.put(0x15E,"PID_ENGINE_FUEL_RATE");
-            arr.put(0x161,"PID_ENGINE_TORQUE_DEMANDED");
-            arr.put(0x162,"PID_ENGINE_TORQUE_PERCENTAGE");
-            arr.put(0x163,"PID_ENGINE_REF_TORQUE");
-            String out = arr.get(pid);
-            if(out != null)
-                return arr.get(pid).substring(4);
-            else
-                return Integer.toString(pid);
 
-        }
         public void run() {
             int line = 0;
             // Keep listening to the InputStream until an exception occurs
             BufferedReader reader = new BufferedReader(new InputStreamReader(mmInStream));
             while (true) {
                 try {
-                    String message = reader.readLine();
+                    final String message = reader.readLine();
                     if (message.matches(".*\\p{Cntrl}.*")) {
                         Log.i(TAG, "Received junk: " + message);
                     } else {
-                        if(message.startsWith("Translating")) {
-                            try {
-                                String[] pieces = message.split(" ");
+                        if(message.matches("^(OBD|GPS|SD).*")) {
+                            runOnUiThread(new Runnable() {
 
-                                int pid = Integer.parseInt(pieces[pieces.length - 1]);
-                                message += String.format(" %s", getPIDName(pid));
-                            } catch (Exception e) {
-                                Log.e(TAG, e.getMessage());
-                            }
+                                @Override
+                                public void run() {
+                                    HashMap<String, TextView> statusViews = new HashMap<String, TextView>(4);
+                                    statusViews.put("OBD", mOBDStatus);
+                                    statusViews.put("GPS", mGPSStatus);
+                                    statusViews.put("SD",  mSDStatus);
+                                    try {
+                                        statusViews.get(message.split(" ")[0]).setText(message);
+                                    } catch (Exception e) {
+                                        // lol
+                                    }
+                                }
+                            });
                         }
                         final String[] pieces = message.split(",");
                         if (pieces.length >= 3) {
@@ -532,7 +586,7 @@ public class MainActivity extends AppCompatActivity {
                             String key = pieces[1];
                             // try to translate the key
                             try {
-                                int pid = Integer.parseInt(key);
+                                int pid = Integer.parseInt(key, 16);
                                 String newKey = getPIDName(pid);
                                 pieces[1] = newKey!=null?newKey:key;
                                 key = pieces[1];
@@ -545,8 +599,8 @@ public class MainActivity extends AppCompatActivity {
 
                                 String[] keys = mODBData.keySet().toArray(new String[mODBData.size()]);
                                 Arrays.sort(keys);
-                                mPIDMenu.clear();
-                                setTopMenu();
+
+                                resetMenu();
                                 for (String s : keys) {
                                     mPIDMenu.add(0, hash(s), Menu.NONE, s);
                                     mKeyIds.put(hash(s), s);
@@ -555,12 +609,7 @@ public class MainActivity extends AppCompatActivity {
                             final int data = Integer.parseInt(pieces[2]);
                             StringBuffer stringBuffer = new StringBuffer();
 
-                          /*  for(int i = 2; i < pieces.length; i++) {
-                                stringBuffer.append(pieces[i]);
-                                if(i+1 < pieces.length)
-                                    stringBuffer.append(",");
-                            }*/
-                            final List<Integer> dataList = Collections.synchronizedList(mODBData.get(key));
+                            final List<Integer> dataList = mODBData.get(key);
                             if(!isListing) {
                                 dataList.add(data);
                                 // add it to the current line data if we are on the right key
