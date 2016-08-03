@@ -3,6 +3,12 @@ package com.jonathan.obd_bt;
 import android.app.AlertDialog;
 import android.bluetooth.BluetoothAdapter;
 import android.bluetooth.BluetoothDevice;
+import android.bluetooth.BluetoothGatt;
+import android.bluetooth.BluetoothGattCallback;
+import android.bluetooth.BluetoothGattCharacteristic;
+import android.bluetooth.BluetoothGattDescriptor;
+import android.bluetooth.BluetoothGattService;
+import android.bluetooth.BluetoothProfile;
 import android.bluetooth.BluetoothSocket;
 import android.content.Context;
 import android.content.DialogInterface;
@@ -10,6 +16,7 @@ import android.content.Intent;
 import android.graphics.Color;
 import android.net.Uri;
 import android.os.Bundle;
+import android.provider.SyncStateContract;
 import android.support.v7.app.AppCompatActivity;
 import android.support.v7.widget.Toolbar;
 import android.util.Log;
@@ -31,7 +38,6 @@ import com.github.mikephil.charting.utils.ColorTemplate;
 
 import org.apache.commons.lang3.StringUtils;
 
-import java.io.BufferedOutputStream;
 import java.io.BufferedReader;
 import java.io.File;
 import java.io.FileOutputStream;
@@ -39,18 +45,14 @@ import java.io.IOException;
 import java.io.InputStream;
 import java.io.InputStreamReader;
 import java.io.OutputStream;
-import java.net.URI;
 import java.util.ArrayList;
 import java.util.Arrays;
-import java.util.Calendar;
 import java.util.Collections;
 import java.util.Date;
 import java.util.HashMap;
 import java.util.List;
-import java.util.Map;
 import java.util.Set;
 import java.util.UUID;
-import java.util.concurrent.locks.Lock;
 
 public class MainActivity extends AppCompatActivity {
     private static final String TAG = "MainActivity";
@@ -67,6 +69,12 @@ public class MainActivity extends AppCompatActivity {
     LineChart mChart;
     private static int POINTS_TO_SHOW = 120;
     TextView mGPSStatus, mOBDStatus, mSDStatus;
+    private int mBaudrate= 115200; // set the default baud rate to 115200
+    private String mPassword="AT+PASSWOR=DFRobot\r\n";
+    public static final UUID SerialPortUUID= UUID.fromString("0000dfb1-0000-1000-8000-00805f9b34fb");
+    public static final UUID CommandUUID= UUID.fromString("0000dfb2-0000-1000-8000-00805f9b34fb");
+    public static final UUID ModelNumberStringUUID=UUID.fromString("00002a24-0000-1000-8000-00805f9b34fb");
+    private String mBaudrateBuffer = "AT+CURRUART="+mBaudrate+"\r\n";
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
@@ -82,7 +90,7 @@ public class MainActivity extends AppCompatActivity {
         mChart.setTouchEnabled(false);
         mOBDStatus = (TextView) findViewById(R.id.obd_status);
         mGPSStatus = (TextView) findViewById(R.id.gps_status);
-        mSDStatus  = (TextView) findViewById(R.id.sd_status);
+        mSDStatus = (TextView) findViewById(R.id.sd_status);
         if (mBluetoothAdapter == null) {
             // Device does not support Bluetooth
             mTextView.setText("Device does not support bluetooth");
@@ -139,17 +147,17 @@ public class MainActivity extends AppCompatActivity {
                 device.cancel();
                 device = null;
             }
-        } else if(id == R.id.action_export) {
+        } else if (id == R.id.action_export) {
             try {
-                File file = new File(getExternalFilesDir(null), "obd_log_file"+ (new Date()).getTime()+".csv");
-                Log.i(TAG, "File saving to: "+file.getAbsoluteFile());
+                File file = new File(getExternalFilesDir(null), "obd_log_file" + (new Date()).getTime() + ".csv");
+                Log.i(TAG, "File saving to: " + file.getAbsoluteFile());
                 OutputStream out = new FileOutputStream(file);
                 out.write("time(diff),pid,value\n".getBytes());
-                for (String line: mTextView.getText().toString().split("\n")) {
+                for (String line : mTextView.getText().toString().split("\n")) {
                     String[] pieces = line.split(",");
-                    if(pieces.length >= 3) {
+                    if (pieces.length >= 3) {
                         pieces[1] = getPIDName(Integer.parseInt(pieces[1], 16));
-                        out.write((StringUtils.join(pieces, ",")+ "\n").getBytes());
+                        out.write((StringUtils.join(pieces, ",") + "\n").getBytes());
                     }
                 }
                 out.close();
@@ -158,12 +166,11 @@ public class MainActivity extends AppCompatActivity {
                 // the attachment
 
                 emailIntent.putExtra(Intent.EXTRA_STREAM, Uri.fromFile(file));
-                emailIntent.putExtra(android.content.Intent.EXTRA_EMAIL, new String[]{"jonmac1@gmail.com"});
                 emailIntent.putExtra(android.content.Intent.EXTRA_TEXT, "readings from the logger");
 
                 // the mail subject
                 emailIntent.putExtra(Intent.EXTRA_SUBJECT, "OBD Logger App output");
-                startActivity(Intent.createChooser(emailIntent , "Send email..."));
+                startActivity(Intent.createChooser(emailIntent, "Send email..."));
             } catch (IOException e) {
                 e.printStackTrace();
                 Log.i(TAG, e.getMessage());
@@ -234,7 +241,7 @@ public class MainActivity extends AppCompatActivity {
                         @Override
                         public void onClick(DialogInterface dialog, int which) {
                             device = new OBDBluetooth(items.get(which).toString().split("\n")[1]);
-                            device.connect();
+                            device.gatConnect();
                             dialog.dismiss();
                         }
                     });
@@ -280,7 +287,7 @@ public class MainActivity extends AppCompatActivity {
             }
 
 
-            data.addXValue(data.getXValCount()+"");
+            data.addXValue(data.getXValCount() + "");
             data.addEntry(new Entry((float) value, set.getEntryCount()), 0);
 
 
@@ -304,9 +311,11 @@ public class MainActivity extends AppCompatActivity {
         runOnUiThread(new Runnable() {
             @Override
             public void run() {
-                mTextView.append(msg);
-                mTextView.append("\n");
-                mScroll.fullScroll(ScrollView.FOCUS_DOWN);
+                synchronized (mTextView) {
+                    mTextView.append(msg);
+                    mTextView.append("\n");
+                    mScroll.fullScroll(ScrollView.FOCUS_DOWN);
+                }
             }
         });
     }
@@ -325,68 +334,88 @@ public class MainActivity extends AppCompatActivity {
         super.onStop();
 
     }
+    private static SparseArray<String> pidMap = new SparseArray<String>(256) { {
+
+        put(0xA,  "PID_GPS_LATITUDE");
+        put(0xB,  "PID_GPS_LONGITUDE");
+        put(0xC,  "PID_GPS_ALTITUDE");
+        put(0xD,  "PID_GPS_SPEED");
+        put(0xE,  "PID_GPS_HEADING");
+        put(0xF,  "PID_GPS_SAT_COUNT");
+        put(0x10, "PID_GPS_TIME");
+        put(0x11, "PID_GPS_DATE");
+
+        put(0x20, "PID_ACC");
+        put(0x21, "PID_GYRO");
+        put(0x22, "PID_COMPASS");
+        put(0x23, "PID_MEMS_TEMP");
+        put(0x24, "PID_BATTERY_VOLTAGE");
+
+        put(0x80, "PID_DATA_SIZE");
+
+        put(0x104, "PID_ENGINE_LOAD");
+        put(0x105, "PID_COOLANT_TEMP");
+        put(0x106, "PID_SHORT_TERM_FUEL_TRIM_1");
+        put(0x107, "PID_LONG_TERM_FUEL_TRIM_1");
+        put(0x108, "PID_SHORT_TERM_FUEL_TRIM_2");
+        put(0x109, "PID_LONG_TERM_FUEL_TRIM_2");
+        put(0x10A, "PID_FUEL_PRESSURE");
+        put(0x10B, "PID_INTAKE_MAP");
+        put(0x10C, "PID_RPM");
+        put(0x10D, "PID_SPEED");
+        put(0x10E, "PID_TIMING_ADVANCE");
+        put(0x10F, "PID_INTAKE_TEMP");
+        put(0x110, "PID_MAF_FLOW");
+        put(0x111, "PID_THROTTLE");
+        put(0x11E, "PID_AUX_INPUT");
+        put(0x11F, "PID_RUNTIME");
+        put(0x121, "PID_DISTANCE_WITH_MIL");
+        put(0x12C, "PID_COMMANDED_EGR");
+        put(0x12D, "PID_EGR_ERROR");
+        put(0x12E, "PID_COMMANDED_EVAPORATIVE_PURGE");
+        put(0x12F, "PID_FUEL_LEVEL");
+        put(0x130, "PID_WARMS_UPS");
+        put(0x131, "PID_DISTANCE");
+        put(0x132, "PID_EVAP_SYS_VAPOR_PRESSURE");
+        put(0x133, "PID_BAROMETRIC");
+        put(0x13C, "PID_CATALYST_TEMP_B1S1");
+        put(0x13D, "PID_CATALYST_TEMP_B2S1");
+        put(0x13E, "PID_CATALYST_TEMP_B1S2");
+        put(0x13F, "PID_CATALYST_TEMP_B2S2");
+        put(0x142, "PID_CONTROL_MODULE_VOLTAGE");
+        put(0x143, "PID_ABSOLUTE_ENGINE_LOAD");
+        put(0x145, "PID_RELATIVE_THROTTLE_POS");
+        put(0x146, "PID_AMBIENT_TEMP");
+        put(0x147, "PID_ABSOLUTE_THROTTLE_POS_B");
+        put(0x148, "PID_ABSOLUTE_THROTTLE_POS_C");
+        put(0x149, "PID_ACC_PEDAL_POS_D");
+        put(0x14A, "PID_ACC_PEDAL_POS_E");
+        put(0x14B, "PID_ACC_PEDAL_POS_F");
+        put(0x14C, "PID_COMMANDED_THROTTLE_ACTUATOR");
+        put(0x14D, "PID_TIME_WITH_MIL");
+        put(0x14E, "PID_TIME_SINCE_CODES_CLEARED");
+        put(0x152, "PID_ETHANOL_FUEL");
+        put(0x159, "PID_FUEL_RAIL_PRESSURE");
+        put(0x15B, "PID_HYBRID_BATTERY_PERCENTAGE");
+        put(0x15C, "PID_ENGINE_OIL_TEMP");
+        put(0x15D, "PID_FUEL_INJECTION_TIMING");
+        put(0x15E, "PID_ENGINE_FUEL_RATE");
+        put(0x161, "PID_ENGINE_TORQUE_DEMANDED");
+        put(0x162, "PID_ENGINE_TORQUE_PERCENTAGE");
+        put(0x163, "PID_ENGINE_REF_TORQUE");
+    }};
     private static String getPIDName(int pid) {
-        SparseArray<String> arr = new SparseArray<>(256);
-        arr.put(0x104,"PID_ENGINE_LOAD");
-        arr.put(0x105,"PID_COOLANT_TEMP");
-        arr.put(0x106,"PID_SHORT_TERM_FUEL_TRIM_1");
-        arr.put(0x107,"PID_LONG_TERM_FUEL_TRIM_1");
-        arr.put(0x108,"PID_SHORT_TERM_FUEL_TRIM_2");
-        arr.put(0x109,"PID_LONG_TERM_FUEL_TRIM_2");
-        arr.put(0x10A,"PID_FUEL_PRESSURE");
-        arr.put(0x10B,"PID_INTAKE_MAP");
-        arr.put(0x10C,"PID_RPM");
-        arr.put(0x10D,"PID_SPEED");
-        arr.put(0x10E,"PID_TIMING_ADVANCE");
-        arr.put(0x10F,"PID_INTAKE_TEMP");
-        arr.put(0x110,"PID_MAF_FLOW");
-        arr.put(0x111,"PID_THROTTLE");
-        arr.put(0x11E,"PID_AUX_INPUT");
-        arr.put(0x11F,"PID_RUNTIME");
-        arr.put(0x121,"PID_DISTANCE_WITH_MIL");
-        arr.put(0x12C,"PID_COMMANDED_EGR");
-        arr.put(0x12D,"PID_EGR_ERROR");
-        arr.put(0x12E,"PID_COMMANDED_EVAPORATIVE_PURGE");
-        arr.put(0x12F,"PID_FUEL_LEVEL");
-        arr.put(0x130,"PID_WARMS_UPS");
-        arr.put(0x131,"PID_DISTANCE");
-        arr.put(0x132,"PID_EVAP_SYS_VAPOR_PRESSURE");
-        arr.put(0x133,"PID_BAROMETRIC");
-        arr.put(0x13C,"PID_CATALYST_TEMP_B1S1");
-        arr.put(0x13D,"PID_CATALYST_TEMP_B2S1");
-        arr.put(0x13E,"PID_CATALYST_TEMP_B1S2");
-        arr.put(0x13F,"PID_CATALYST_TEMP_B2S2");
-        arr.put(0x142,"PID_CONTROL_MODULE_VOLTAGE");
-        arr.put(0x143,"PID_ABSOLUTE_ENGINE_LOAD");
-        arr.put(0x145,"PID_RELATIVE_THROTTLE_POS");
-        arr.put(0x146,"PID_AMBIENT_TEMP");
-        arr.put(0x147,"PID_ABSOLUTE_THROTTLE_POS_B");
-        arr.put(0x148,"PID_ABSOLUTE_THROTTLE_POS_C");
-        arr.put(0x149,"PID_ACC_PEDAL_POS_D");
-        arr.put(0x14A,"PID_ACC_PEDAL_POS_E");
-        arr.put(0x14B,"PID_ACC_PEDAL_POS_F");
-        arr.put(0x14C,"PID_COMMANDED_THROTTLE_ACTUATOR");
-        arr.put(0x14D,"PID_TIME_WITH_MIL");
-        arr.put(0x14E,"PID_TIME_SINCE_CODES_CLEARED");
-        arr.put(0x152,"PID_ETHANOL_FUEL");
-        arr.put(0x159,"PID_FUEL_RAIL_PRESSURE");
-        arr.put(0x15B,"PID_HYBRID_BATTERY_PERCENTAGE");
-        arr.put(0x15C,"PID_ENGINE_OIL_TEMP");
-        arr.put(0x15D,"PID_FUEL_INJECTION_TIMING");
-        arr.put(0x15E,"PID_ENGINE_FUEL_RATE");
-        arr.put(0x161,"PID_ENGINE_TORQUE_DEMANDED");
-        arr.put(0x162,"PID_ENGINE_TORQUE_PERCENTAGE");
-        arr.put(0x163,"PID_ENGINE_REF_TORQUE");
-        String out = arr.get(pid);
-        if(out != null)
-            return arr.get(pid).substring(4);
+        String out = pidMap.get(pid);
+        if (out != null)
+            return pidMap.get(pid).substring(4);
         else
             return Integer.toString(pid);
 
     }
+
     class OBDBluetooth {
         private ConnectedThread mConnectedThread;
-        private ConnectThread mConnectThread;
+        private ConnectThreadGatt mConnectThread;
         private static final String TAG = "OBDBluetooth";
         public UUID MY_UUID;
 
@@ -413,6 +442,11 @@ public class MainActivity extends AppCompatActivity {
             updateLog("Trying to connect to " + address);
         }
 
+        public void gatConnect() {
+            mConnectThread = new ConnectThreadGatt(mBluetoothDevice);
+            mConnectThread.start();
+        }
+
         public void connect() {
             // Cancel any thread attempting to make a connection
             if (mState == STATE_CONNECTING) {
@@ -429,8 +463,8 @@ public class MainActivity extends AppCompatActivity {
             }
 
             // Start the thread to connect with the given device
-            mConnectThread = new ConnectThread(mBluetoothDevice);
-            mConnectThread.start();
+//            mConnectThread = new ConnectThread(mBluetoothDevice);
+//            mConnectThread.start();
         }
 
         public void cancel() {
@@ -454,6 +488,223 @@ public class MainActivity extends AppCompatActivity {
             mConnectedThread = new ConnectedThread(socket);
             mConnectedThread.start();
 
+        }
+
+        private class ConnectThreadGatt extends Thread {
+            private BluetoothGatt mBluetoothGatt;
+            private final BluetoothDevice mBluetoothDevice;
+            private String lineBuffer = null;
+            private BluetoothGattCharacteristic mSCharacteristic,
+                    mModelNumberCharacteristic,
+                    mSerialPortCharacteristic,
+                    mCommandCharacteristic;
+            private final BluetoothGattCallback btleGattCallback = new BluetoothGattCallback() {
+            private boolean mConnected = false;
+                @Override
+                public void onConnectionStateChange(BluetoothGatt gatt, int status, int newState) {
+                    SparseArray<String> statuses = new SparseArray<>();
+                    statuses.append(BluetoothProfile.STATE_CONNECTED, "CONNECTED");
+                    statuses.append(BluetoothProfile.STATE_CONNECTING, "CONNECTING");
+                    statuses.append(BluetoothProfile.STATE_DISCONNECTED, "DISCONNECTED");
+                    statuses.append(BluetoothProfile.STATE_DISCONNECTING, "DISCONNECTING");
+                    updateLog("BLE Connection state changed: " + statuses.get(newState, "unknown"));
+                    if (newState == BluetoothProfile.STATE_CONNECTED) {
+                        if (mBluetoothGatt.discoverServices()) {
+                            Log.i(TAG, "Attempting to start service discovery:");
+
+                        } else {
+                            Log.e(TAG, "Attempting to start service discovery:not success");
+
+                        }
+                    }
+                }
+
+                @Override
+                public void onServicesDiscovered(BluetoothGatt gatt, int status) {
+                    if(status == BluetoothGatt.GATT_SUCCESS) {
+                        updateLog("Discovered Services Successfully");
+                        UUID uuid = null;
+                        mModelNumberCharacteristic=null;
+                        mSerialPortCharacteristic=null;
+                        mCommandCharacteristic=null;
+
+                        // Loops through available GATT Services.
+                        for (BluetoothGattService gattService : gatt.getServices()) {
+                            uuid = gattService.getUuid();
+//                        System.out.println("displayGattServices + uuid="+uuid.toString());
+
+                            List<BluetoothGattCharacteristic> gattCharacteristics =
+                                    gattService.getCharacteristics();
+
+                            // Loops through available Characteristics.
+                            for (BluetoothGattCharacteristic gattCharacteristic : gattCharacteristics) {
+                                uuid = gattCharacteristic.getUuid();
+                                if(uuid.equals(ModelNumberStringUUID)){
+                                    mModelNumberCharacteristic=gattCharacteristic;
+                                    Log.i(TAG,"mModelNumberCharacteristic  "+mModelNumberCharacteristic.getUuid().toString());
+                                }
+                                else if(uuid.equals(SerialPortUUID)){
+                                    mSerialPortCharacteristic = gattCharacteristic;
+                                    Log.i(TAG,"mSerialPortCharacteristic  "+mSerialPortCharacteristic.getUuid().toString());
+                                }
+                                else if(uuid.equals(CommandUUID)){
+                                    mCommandCharacteristic = gattCharacteristic;
+                                    Log.i(TAG,"mSerialPortCharacteristic  "+mSerialPortCharacteristic.getUuid().toString());
+                                }
+                            }
+                        }
+
+                        mSCharacteristic=mModelNumberCharacteristic;
+                        gatt.setCharacteristicNotification(mSCharacteristic, true);
+                        Log.i(TAG, "Reading mModelNumber");
+                        gatt.readCharacteristic(mSCharacteristic);
+
+                    } else {
+                        updateLog("Could not find GATT services");
+                    }
+
+                }
+                @Override
+                public void onCharacteristicChanged(BluetoothGatt gatt, BluetoothGattCharacteristic characteristic) {
+                    byte[] data = characteristic.getValue();
+                    if (data != null && data.length > 0) {
+                        String s = new String(data);
+//                        Log.i(TAG, "Characteristic Changed to "+ s);
+
+                        if (!characteristic.getUuid().equals(SerialPortUUID) && mConnected) {
+                            gatt.setCharacteristicNotification(characteristic, false);
+                        } else {
+                            if(lineBuffer != null) {
+                                s = lineBuffer + s;
+                                lineBuffer = null;
+                            }
+                            Log.i(TAG, "received:" + s);
+                            String[] lines = s.trim().split("\\r\\n|\\n|\\r");
+                            for (String line : lines) {
+                                String[] pieces = line.split(",");
+                                if(pieces.length != 3) {
+                                    lineBuffer = line;
+                                    continue;
+                                }
+                                receivedLine(line);
+                            }
+                        }
+                    }
+
+                }
+
+                @Override
+                public void onCharacteristicRead(BluetoothGatt gatt,
+                                                 BluetoothGattCharacteristic characteristic,
+                                                 int status) {
+                    updateLog("onCharacteristicChanged  " + new String(characteristic.getValue()));
+                    if (status == BluetoothGatt.GATT_SUCCESS) {
+                        String s = new String(characteristic.getValue());
+                        updateLog("onCharacteristicRead  " + characteristic.getUuid().toString() + s);
+                        if(s.toUpperCase().startsWith("DF BLUNO")) {
+                            Log.i(TAG, "Setting password and BAUD");
+                            gatt.setCharacteristicNotification(mModelNumberCharacteristic, false);
+                            characteristic.setValue(mPassword);
+                            gatt.writeCharacteristic(characteristic);
+                            characteristic.setValue(mBaudrateBuffer);
+                            gatt.writeCharacteristic(characteristic);
+                            gatt.setCharacteristicNotification(mSerialPortCharacteristic, true);
+                            mConnected = true;
+                            updateLog("Receiving");
+                        }
+                    }
+                }
+            };
+
+            private void receivedLine(final String message) {
+                final String[] pieces = message.split(",");
+                Log.i(TAG, String.format("Parsing (len: %d) %s #",message.length(), message));
+                if (pieces[1].matches("(OBD|GPS|SD)")) {
+                    runOnUiThread(new Runnable() {
+
+                        @Override
+                        public void run() {
+                            HashMap<String, TextView> statusViews = new HashMap<String, TextView>(4);
+                            statusViews.put("OBD", mOBDStatus);
+                            statusViews.put("GPS", mGPSStatus);
+                            statusViews.put("SD", mSDStatus);
+                            try {
+                                statusViews.get(pieces[1]).setText(pieces[2]);
+                            } catch (Exception e) {
+                                // lol
+                            }
+                        }
+                    });
+                } else {
+                    if (pieces.length >= 3) {
+                        // we have valuable data, store it!
+                        String key = pieces[1];
+                        // try to translate the key
+                        try {
+                            int pid = Integer.parseInt(key, 16);
+                            String newKey = getPIDName(pid);
+                            pieces[1] = newKey != null ? newKey : key;
+                            key = pieces[1];
+                        } catch (NumberFormatException e) {
+                            // arduino already translated
+                            // probably looking at mems or gps data
+                        }
+                        if (!mODBData.containsKey(key)) {
+                            mODBData.put(key, new ArrayList<Integer>());
+
+                            String[] keys = mODBData.keySet().toArray(new String[mODBData.size()]);
+                            Arrays.sort(keys);
+
+                            resetMenu();
+                            for (String s : keys) {
+                                mPIDMenu.add(0, hash(s), Menu.NONE, s);
+                                mKeyIds.put(hash(s), s);
+                            }
+                        }
+                        final int data = Integer.parseInt(pieces[2]);
+                        StringBuffer stringBuffer = new StringBuffer();
+
+                        final List<Integer> dataList = mODBData.get(key);
+                        if (!isListing) {
+                            dataList.add(data);
+                            // add it to the current line data if we are on the right key
+                            if (mPlotKey.equals(key)) {
+                                if (isPlotting) {
+                                    runOnUiThread(new Runnable() {
+                                        @Override
+                                        public void run() {
+                                            addEntry(data);
+                                            mChart.invalidate();
+                                        }
+                                    });
+                                }
+                            }
+                        }
+                    }
+                    if (!isPlotting)
+                        updateLog(String.format("%s %s %s", pieces[0], pieces[1], pieces[2]));
+                }
+            }
+
+
+            public ConnectThreadGatt(BluetoothDevice device) {
+                mBluetoothDevice = device;
+            }
+
+            public void cancel() {
+                if (mBluetoothGatt != null) {
+                    updateLog("Cancelling BLE connection");
+                    mBluetoothGatt.disconnect();
+                    mBluetoothGatt.close();
+                }
+            }
+
+            public void run() {
+                synchronized (this) {
+                    mBluetoothGatt = mBluetoothDevice.connectGatt(mContext, false, btleGattCallback);
+                }
+
+            }
         }
 
         private class ConnectThread extends Thread {
@@ -563,73 +814,7 @@ public class MainActivity extends AppCompatActivity {
                     if (message.matches(".*\\p{Cntrl}.*")) {
                         Log.i(TAG, "Received junk: " + message);
                     } else {
-                        if(message.matches("^(OBD|GPS|SD).*")) {
-                            runOnUiThread(new Runnable() {
 
-                                @Override
-                                public void run() {
-                                    HashMap<String, TextView> statusViews = new HashMap<String, TextView>(4);
-                                    statusViews.put("OBD", mOBDStatus);
-                                    statusViews.put("GPS", mGPSStatus);
-                                    statusViews.put("SD",  mSDStatus);
-                                    try {
-                                        statusViews.get(message.split(" ")[0]).setText(message);
-                                    } catch (Exception e) {
-                                        // lol
-                                    }
-                                }
-                            });
-                        }
-                        final String[] pieces = message.split(",");
-                        if (pieces.length >= 3) {
-                            // we have valuable data, store it!
-                            String key = pieces[1];
-                            // try to translate the key
-                            try {
-                                int pid = Integer.parseInt(key, 16);
-                                String newKey = getPIDName(pid);
-                                pieces[1] = newKey!=null?newKey:key;
-                                key = pieces[1];
-                            } catch(NumberFormatException e) {
-                                // arduino already translated
-                                // probably looking at mems or gps data
-                            }
-                            if (!mODBData.containsKey(key)) {
-                                mODBData.put(key, new ArrayList<Integer>());
-
-                                String[] keys = mODBData.keySet().toArray(new String[mODBData.size()]);
-                                Arrays.sort(keys);
-
-                                resetMenu();
-                                for (String s : keys) {
-                                    mPIDMenu.add(0, hash(s), Menu.NONE, s);
-                                    mKeyIds.put(hash(s), s);
-                                }
-                            }
-                            final int data = Integer.parseInt(pieces[2]);
-                            StringBuffer stringBuffer = new StringBuffer();
-
-                            final List<Integer> dataList = mODBData.get(key);
-                            if(!isListing) {
-                                dataList.add(data);
-                                // add it to the current line data if we are on the right key
-                                if (mPlotKey.equals(key)) {
-                                    if (isPlotting) {
-                                        runOnUiThread(new Runnable() {
-                                            @Override
-                                            public void run() {
-                                                addEntry(data);
-                                                mChart.invalidate();
-                                            }
-                                        });
-                                    }
-                                }
-
-                            }
-                        }
-                        if (!isPlotting)
-                            updateLog(String.format("[%d] %s", line, message));
-                        line++;
                     }
                 } catch (IOException e) {
                     updateLog("error reading: " + e.getMessage());
