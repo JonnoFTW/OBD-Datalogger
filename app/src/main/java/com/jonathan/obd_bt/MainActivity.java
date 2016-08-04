@@ -6,7 +6,6 @@ import android.bluetooth.BluetoothDevice;
 import android.bluetooth.BluetoothGatt;
 import android.bluetooth.BluetoothGattCallback;
 import android.bluetooth.BluetoothGattCharacteristic;
-import android.bluetooth.BluetoothGattDescriptor;
 import android.bluetooth.BluetoothGattService;
 import android.bluetooth.BluetoothProfile;
 import android.bluetooth.BluetoothSocket;
@@ -16,7 +15,6 @@ import android.content.Intent;
 import android.graphics.Color;
 import android.net.Uri;
 import android.os.Bundle;
-import android.provider.SyncStateContract;
 import android.support.v7.app.AppCompatActivity;
 import android.support.v7.widget.Toolbar;
 import android.util.Log;
@@ -69,12 +67,12 @@ public class MainActivity extends AppCompatActivity {
     LineChart mChart;
     private static int POINTS_TO_SHOW = 120;
     TextView mGPSStatus, mOBDStatus, mSDStatus;
-    private int mBaudrate= 115200; // set the default baud rate to 115200
-    private String mPassword="AT+PASSWOR=DFRobot\r\n";
-    public static final UUID SerialPortUUID= UUID.fromString("0000dfb1-0000-1000-8000-00805f9b34fb");
-    public static final UUID CommandUUID= UUID.fromString("0000dfb2-0000-1000-8000-00805f9b34fb");
-    public static final UUID ModelNumberStringUUID=UUID.fromString("00002a24-0000-1000-8000-00805f9b34fb");
-    private String mBaudrateBuffer = "AT+CURRUART="+mBaudrate+"\r\n";
+    private int mBaudrate = 115200; // set the default baud rate to 115200
+    private String mPassword = "AT+PASSWOR=DFRobot\r\n";
+    public static final UUID SerialPortUUID = UUID.fromString("0000dfb1-0000-1000-8000-00805f9b34fb");
+    public static final UUID CommandUUID = UUID.fromString("0000dfb2-0000-1000-8000-00805f9b34fb");
+    public static final UUID ModelNumberStringUUID = UUID.fromString("00002a24-0000-1000-8000-00805f9b34fb");
+    private String mBaudrateBuffer = "AT+CURRUART=" + mBaudrate + "\r\n";
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
@@ -334,76 +332,80 @@ public class MainActivity extends AppCompatActivity {
         super.onStop();
 
     }
-    private static SparseArray<String> pidMap = new SparseArray<String>(256) { {
 
-        put(0xA,  "PID_GPS_LATITUDE");
-        put(0xB,  "PID_GPS_LONGITUDE");
-        put(0xC,  "PID_GPS_ALTITUDE");
-        put(0xD,  "PID_GPS_SPEED");
-        put(0xE,  "PID_GPS_HEADING");
-        put(0xF,  "PID_GPS_SAT_COUNT");
-        put(0x10, "PID_GPS_TIME");
-        put(0x11, "PID_GPS_DATE");
+    private static SparseArray<String> pidMap = new SparseArray<String>(256) {
+        {
 
-        put(0x20, "PID_ACC");
-        put(0x21, "PID_GYRO");
-        put(0x22, "PID_COMPASS");
-        put(0x23, "PID_MEMS_TEMP");
-        put(0x24, "PID_BATTERY_VOLTAGE");
+            put(0xA, "PID_GPS_LATITUDE");
+            put(0xB, "PID_GPS_LONGITUDE");
+            put(0xC, "PID_GPS_ALTITUDE");
+            put(0xD, "PID_GPS_SPEED");
+            put(0xE, "PID_GPS_HEADING");
+            put(0xF, "PID_GPS_SAT_COUNT");
+            put(0x10, "PID_GPS_TIME");
+            put(0x11, "PID_GPS_DATE");
 
-        put(0x80, "PID_DATA_SIZE");
+            put(0x20, "PID_ACC");
+            put(0x21, "PID_GYRO");
+            put(0x22, "PID_COMPASS");
+            put(0x23, "PID_MEMS_TEMP");
+            put(0x24, "PID_BATTERY_VOLTAGE");
 
-        put(0x104, "PID_ENGINE_LOAD");
-        put(0x105, "PID_COOLANT_TEMP");
-        put(0x106, "PID_SHORT_TERM_FUEL_TRIM_1");
-        put(0x107, "PID_LONG_TERM_FUEL_TRIM_1");
-        put(0x108, "PID_SHORT_TERM_FUEL_TRIM_2");
-        put(0x109, "PID_LONG_TERM_FUEL_TRIM_2");
-        put(0x10A, "PID_FUEL_PRESSURE");
-        put(0x10B, "PID_INTAKE_MAP");
-        put(0x10C, "PID_RPM");
-        put(0x10D, "PID_SPEED");
-        put(0x10E, "PID_TIMING_ADVANCE");
-        put(0x10F, "PID_INTAKE_TEMP");
-        put(0x110, "PID_MAF_FLOW");
-        put(0x111, "PID_THROTTLE");
-        put(0x11E, "PID_AUX_INPUT");
-        put(0x11F, "PID_RUNTIME");
-        put(0x121, "PID_DISTANCE_WITH_MIL");
-        put(0x12C, "PID_COMMANDED_EGR");
-        put(0x12D, "PID_EGR_ERROR");
-        put(0x12E, "PID_COMMANDED_EVAPORATIVE_PURGE");
-        put(0x12F, "PID_FUEL_LEVEL");
-        put(0x130, "PID_WARMS_UPS");
-        put(0x131, "PID_DISTANCE");
-        put(0x132, "PID_EVAP_SYS_VAPOR_PRESSURE");
-        put(0x133, "PID_BAROMETRIC");
-        put(0x13C, "PID_CATALYST_TEMP_B1S1");
-        put(0x13D, "PID_CATALYST_TEMP_B2S1");
-        put(0x13E, "PID_CATALYST_TEMP_B1S2");
-        put(0x13F, "PID_CATALYST_TEMP_B2S2");
-        put(0x142, "PID_CONTROL_MODULE_VOLTAGE");
-        put(0x143, "PID_ABSOLUTE_ENGINE_LOAD");
-        put(0x145, "PID_RELATIVE_THROTTLE_POS");
-        put(0x146, "PID_AMBIENT_TEMP");
-        put(0x147, "PID_ABSOLUTE_THROTTLE_POS_B");
-        put(0x148, "PID_ABSOLUTE_THROTTLE_POS_C");
-        put(0x149, "PID_ACC_PEDAL_POS_D");
-        put(0x14A, "PID_ACC_PEDAL_POS_E");
-        put(0x14B, "PID_ACC_PEDAL_POS_F");
-        put(0x14C, "PID_COMMANDED_THROTTLE_ACTUATOR");
-        put(0x14D, "PID_TIME_WITH_MIL");
-        put(0x14E, "PID_TIME_SINCE_CODES_CLEARED");
-        put(0x152, "PID_ETHANOL_FUEL");
-        put(0x159, "PID_FUEL_RAIL_PRESSURE");
-        put(0x15B, "PID_HYBRID_BATTERY_PERCENTAGE");
-        put(0x15C, "PID_ENGINE_OIL_TEMP");
-        put(0x15D, "PID_FUEL_INJECTION_TIMING");
-        put(0x15E, "PID_ENGINE_FUEL_RATE");
-        put(0x161, "PID_ENGINE_TORQUE_DEMANDED");
-        put(0x162, "PID_ENGINE_TORQUE_PERCENTAGE");
-        put(0x163, "PID_ENGINE_REF_TORQUE");
-    }};
+            put(0x80, "PID_DATA_SIZE");
+
+            put(0x104, "PID_ENGINE_LOAD");
+            put(0x105, "PID_COOLANT_TEMP");
+            put(0x106, "PID_SHORT_TERM_FUEL_TRIM_1");
+            put(0x107, "PID_LONG_TERM_FUEL_TRIM_1");
+            put(0x108, "PID_SHORT_TERM_FUEL_TRIM_2");
+            put(0x109, "PID_LONG_TERM_FUEL_TRIM_2");
+            put(0x10A, "PID_FUEL_PRESSURE");
+            put(0x10B, "PID_INTAKE_MAP");
+            put(0x10C, "PID_RPM");
+            put(0x10D, "PID_SPEED");
+            put(0x10E, "PID_TIMING_ADVANCE");
+            put(0x10F, "PID_INTAKE_TEMP");
+            put(0x110, "PID_MAF_FLOW");
+            put(0x111, "PID_THROTTLE");
+            put(0x11E, "PID_AUX_INPUT");
+            put(0x11F, "PID_RUNTIME");
+            put(0x121, "PID_DISTANCE_WITH_MIL");
+            put(0x12C, "PID_COMMANDED_EGR");
+            put(0x12D, "PID_EGR_ERROR");
+            put(0x12E, "PID_COMMANDED_EVAPORATIVE_PURGE");
+            put(0x12F, "PID_FUEL_LEVEL");
+            put(0x130, "PID_WARMS_UPS");
+            put(0x131, "PID_DISTANCE");
+            put(0x132, "PID_EVAP_SYS_VAPOR_PRESSURE");
+            put(0x133, "PID_BAROMETRIC");
+            put(0x13C, "PID_CATALYST_TEMP_B1S1");
+            put(0x13D, "PID_CATALYST_TEMP_B2S1");
+            put(0x13E, "PID_CATALYST_TEMP_B1S2");
+            put(0x13F, "PID_CATALYST_TEMP_B2S2");
+            put(0x142, "PID_CONTROL_MODULE_VOLTAGE");
+            put(0x143, "PID_ABSOLUTE_ENGINE_LOAD");
+            put(0x145, "PID_RELATIVE_THROTTLE_POS");
+            put(0x146, "PID_AMBIENT_TEMP");
+            put(0x147, "PID_ABSOLUTE_THROTTLE_POS_B");
+            put(0x148, "PID_ABSOLUTE_THROTTLE_POS_C");
+            put(0x149, "PID_ACC_PEDAL_POS_D");
+            put(0x14A, "PID_ACC_PEDAL_POS_E");
+            put(0x14B, "PID_ACC_PEDAL_POS_F");
+            put(0x14C, "PID_COMMANDED_THROTTLE_ACTUATOR");
+            put(0x14D, "PID_TIME_WITH_MIL");
+            put(0x14E, "PID_TIME_SINCE_CODES_CLEARED");
+            put(0x152, "PID_ETHANOL_FUEL");
+            put(0x159, "PID_FUEL_RAIL_PRESSURE");
+            put(0x15B, "PID_HYBRID_BATTERY_PERCENTAGE");
+            put(0x15C, "PID_ENGINE_OIL_TEMP");
+            put(0x15D, "PID_FUEL_INJECTION_TIMING");
+            put(0x15E, "PID_ENGINE_FUEL_RATE");
+            put(0x161, "PID_ENGINE_TORQUE_DEMANDED");
+            put(0x162, "PID_ENGINE_TORQUE_PERCENTAGE");
+            put(0x163, "PID_ENGINE_REF_TORQUE");
+        }
+    };
+
     private static String getPIDName(int pid) {
         String out = pidMap.get(pid);
         if (out != null)
@@ -414,17 +416,10 @@ public class MainActivity extends AppCompatActivity {
     }
 
     class OBDBluetooth {
-        private ConnectedThread mConnectedThread;
         private ConnectThreadGatt mConnectThread;
         private static final String TAG = "OBDBluetooth";
         public UUID MY_UUID;
 
-        public static final int STATE_NONE = 0; // we're doing nothing
-        public static final int STATE_LISTEN = 1; // now listening for incoming
-        // connections
-        public static final int STATE_CONNECTING = 2; // now initiating an
-        // outgoing connection
-        public static final int STATE_CONNECTED = 3; // now connected to a
         // remote device
         public int mState;
         BluetoothDevice mBluetoothDevice;
@@ -447,47 +442,11 @@ public class MainActivity extends AppCompatActivity {
             mConnectThread.start();
         }
 
-        public void connect() {
-            // Cancel any thread attempting to make a connection
-            if (mState == STATE_CONNECTING) {
-                if (mConnectThread != null) {
-                    mConnectThread.cancel();
-                    mConnectThread = null;
-                }
-            }
-
-            // Cancel any thread currently running a connection
-            if (mConnectedThread != null) {
-                mConnectedThread.cancel();
-                mConnectedThread = null;
-            }
-
-            // Start the thread to connect with the given device
-//            mConnectThread = new ConnectThread(mBluetoothDevice);
-//            mConnectThread.start();
-        }
-
         public void cancel() {
             if (mConnectThread != null) {
                 mConnectThread.cancel();
                 mConnectThread = null;
             }
-            if (mConnectedThread != null) {
-                mConnectedThread.cancel();
-                mConnectedThread = null;
-            }
-        }
-
-        public synchronized void connected(BluetoothSocket socket,
-                                           BluetoothDevice device) {
-            Log.i(TAG, "connected, Socket to " + device.getName());
-            updateLog("Connection successful");
-            // Start the thread to manage the connection and perform
-            // transmissions
-
-            mConnectedThread = new ConnectedThread(socket);
-            mConnectedThread.start();
-
         }
 
         private class ConnectThreadGatt extends Thread {
@@ -499,7 +458,8 @@ public class MainActivity extends AppCompatActivity {
                     mSerialPortCharacteristic,
                     mCommandCharacteristic;
             private final BluetoothGattCallback btleGattCallback = new BluetoothGattCallback() {
-            private boolean mConnected = false;
+                private boolean mConnected = false;
+
                 @Override
                 public void onConnectionStateChange(BluetoothGatt gatt, int status, int newState) {
                     SparseArray<String> statuses = new SparseArray<>();
@@ -521,12 +481,12 @@ public class MainActivity extends AppCompatActivity {
 
                 @Override
                 public void onServicesDiscovered(BluetoothGatt gatt, int status) {
-                    if(status == BluetoothGatt.GATT_SUCCESS) {
+                    if (status == BluetoothGatt.GATT_SUCCESS) {
                         updateLog("Discovered Services Successfully");
                         UUID uuid = null;
-                        mModelNumberCharacteristic=null;
-                        mSerialPortCharacteristic=null;
-                        mCommandCharacteristic=null;
+                        mModelNumberCharacteristic = null;
+                        mSerialPortCharacteristic = null;
+                        mCommandCharacteristic = null;
 
                         // Loops through available GATT Services.
                         for (BluetoothGattService gattService : gatt.getServices()) {
@@ -539,22 +499,20 @@ public class MainActivity extends AppCompatActivity {
                             // Loops through available Characteristics.
                             for (BluetoothGattCharacteristic gattCharacteristic : gattCharacteristics) {
                                 uuid = gattCharacteristic.getUuid();
-                                if(uuid.equals(ModelNumberStringUUID)){
-                                    mModelNumberCharacteristic=gattCharacteristic;
-                                    Log.i(TAG,"mModelNumberCharacteristic  "+mModelNumberCharacteristic.getUuid().toString());
-                                }
-                                else if(uuid.equals(SerialPortUUID)){
+                                if (uuid.equals(ModelNumberStringUUID)) {
+                                    mModelNumberCharacteristic = gattCharacteristic;
+                                    Log.i(TAG, "mModelNumberCharacteristic  " + mModelNumberCharacteristic.getUuid().toString());
+                                } else if (uuid.equals(SerialPortUUID)) {
                                     mSerialPortCharacteristic = gattCharacteristic;
-                                    Log.i(TAG,"mSerialPortCharacteristic  "+mSerialPortCharacteristic.getUuid().toString());
-                                }
-                                else if(uuid.equals(CommandUUID)){
+                                    Log.i(TAG, "mSerialPortCharacteristic  " + mSerialPortCharacteristic.getUuid().toString());
+                                } else if (uuid.equals(CommandUUID)) {
                                     mCommandCharacteristic = gattCharacteristic;
-                                    Log.i(TAG,"mSerialPortCharacteristic  "+mSerialPortCharacteristic.getUuid().toString());
+                                    Log.i(TAG, "mSerialPortCharacteristic  " + mSerialPortCharacteristic.getUuid().toString());
                                 }
                             }
                         }
 
-                        mSCharacteristic=mModelNumberCharacteristic;
+                        mSCharacteristic = mModelNumberCharacteristic;
                         gatt.setCharacteristicNotification(mSCharacteristic, true);
                         Log.i(TAG, "Reading mModelNumber");
                         gatt.readCharacteristic(mSCharacteristic);
@@ -564,6 +522,7 @@ public class MainActivity extends AppCompatActivity {
                     }
 
                 }
+
                 @Override
                 public void onCharacteristicChanged(BluetoothGatt gatt, BluetoothGattCharacteristic characteristic) {
                     byte[] data = characteristic.getValue();
@@ -574,7 +533,7 @@ public class MainActivity extends AppCompatActivity {
                         if (!characteristic.getUuid().equals(SerialPortUUID) && mConnected) {
                             gatt.setCharacteristicNotification(characteristic, false);
                         } else {
-                            if(lineBuffer != null) {
+                            if (lineBuffer != null) {
                                 s = lineBuffer + s;
                                 lineBuffer = null;
                             }
@@ -582,7 +541,7 @@ public class MainActivity extends AppCompatActivity {
                             String[] lines = s.trim().split("\\r\\n|\\n|\\r");
                             for (String line : lines) {
                                 String[] pieces = line.split(",");
-                                if(pieces.length != 3) {
+                                if (pieces.length != 3) {
                                     lineBuffer = line;
                                     continue;
                                 }
@@ -597,11 +556,10 @@ public class MainActivity extends AppCompatActivity {
                 public void onCharacteristicRead(BluetoothGatt gatt,
                                                  BluetoothGattCharacteristic characteristic,
                                                  int status) {
-                    updateLog("onCharacteristicChanged  " + new String(characteristic.getValue()));
                     if (status == BluetoothGatt.GATT_SUCCESS) {
                         String s = new String(characteristic.getValue());
                         updateLog("onCharacteristicRead  " + characteristic.getUuid().toString() + s);
-                        if(s.toUpperCase().startsWith("DF BLUNO")) {
+                        if (s.toUpperCase().startsWith("DF BLUNO")) {
                             Log.i(TAG, "Setting password and BAUD");
                             gatt.setCharacteristicNotification(mModelNumberCharacteristic, false);
                             characteristic.setValue(mPassword);
@@ -618,7 +576,7 @@ public class MainActivity extends AppCompatActivity {
 
             private void receivedLine(final String message) {
                 final String[] pieces = message.split(",");
-                Log.i(TAG, String.format("Parsing (len: %d) %s #",message.length(), message));
+//                Log.i(TAG, String.format("Parsing (len: %d) %s #", message.length(), message));
                 if (pieces[1].matches("(OBD|GPS|SD)")) {
                     runOnUiThread(new Runnable() {
 
@@ -629,7 +587,7 @@ public class MainActivity extends AppCompatActivity {
                             statusViews.put("GPS", mGPSStatus);
                             statusViews.put("SD", mSDStatus);
                             try {
-                                statusViews.get(pieces[1]).setText(pieces[2]);
+                                statusViews.get(pieces[1]).setText(String.format("%s: %s", pieces[1], pieces[2]));
                             } catch (Exception e) {
                                 // lol
                             }
@@ -662,7 +620,6 @@ public class MainActivity extends AppCompatActivity {
                             }
                         }
                         final int data = Integer.parseInt(pieces[2]);
-                        StringBuffer stringBuffer = new StringBuffer();
 
                         final List<Integer> dataList = mODBData.get(key);
                         if (!isListing) {
@@ -682,7 +639,7 @@ public class MainActivity extends AppCompatActivity {
                         }
                     }
                     if (!isPlotting)
-                        updateLog(String.format("%s %s %s", pieces[0], pieces[1], pieces[2]));
+                        updateLog(String.format("%s\t%s\t%s", pieces[0], pieces[1], pieces[2]));
                 }
             }
 
@@ -706,56 +663,6 @@ public class MainActivity extends AppCompatActivity {
 
             }
         }
-
-        private class ConnectThread extends Thread {
-            private final BluetoothSocket mmSocket;
-            private final BluetoothDevice mmDevice;
-
-            public ConnectThread(BluetoothDevice device) {
-                // Use a temporary object that is later assigned to mmSocket,
-                // because mmSocket is final
-                BluetoothSocket tmp = null;
-                mmDevice = device;
-                // Get a BluetoothSocket to connect with the given BluetoothDevice
-                try {
-                    // MY_UUID is the app's UUID string, also used by the server code
-                    tmp = device.createInsecureRfcommSocketToServiceRecord(MY_UUID);
-                } catch (IOException e) {
-                    updateLog("error creating insecure socket" + e.getMessage());
-                }
-                mmSocket = tmp;
-            }
-
-            public void run() {
-                // Cancel discovery because it will slow down the connection
-                mBluetoothAdapter.cancelDiscovery();
-
-                try {
-                    // Connect the device through the socket. This will block
-                    // until it succeeds or throws an exception
-                    mmSocket.connect();
-                } catch (IOException connectException) {
-                    // Unable to connect; close the socket and get out
-                    updateLog(connectException.getMessage());
-                    cancel();
-                    return;
-                }
-
-                // Do work to manage the connection (in a separate thread)
-                connected(mmSocket, mmDevice);
-            }
-
-            /**
-             * Will cancel an in-progress connection, and close the socket
-             */
-            public void cancel() {
-                updateLog("Cancelling connection");
-                try {
-                    mmSocket.close();
-                } catch (IOException e) {
-                }
-            }
-        }
     }
 
     @Override
@@ -774,62 +681,7 @@ public class MainActivity extends AppCompatActivity {
 
         // if the bluetooth is running, pause it
         if (device != null) {
-            device.connect();
-        }
-    }
-
-
-    private class ConnectedThread extends Thread {
-        private static final String TAG = "ConnectedThread";
-        private final BluetoothSocket mmSocket;
-        private final InputStream mmInStream;
-        private final OutputStream mmOutStream;
-
-        public ConnectedThread(BluetoothSocket socket) {
-            mmSocket = socket;
-            InputStream tmpIn = null;
-            OutputStream tmpOut = null;
-
-            // Get the input and output streams, using temp objects because
-            // member streams are final
-            try {
-
-                tmpIn = socket.getInputStream();
-                tmpOut = socket.getOutputStream();
-            } catch (IOException e) {
-                updateLog("error opening " + e.getMessage());
-            }
-            mmOutStream = tmpOut;
-            mmInStream = tmpIn;
-
-        }
-
-        public void run() {
-            int line = 0;
-            // Keep listening to the InputStream until an exception occurs
-            BufferedReader reader = new BufferedReader(new InputStreamReader(mmInStream));
-            while (true) {
-                try {
-                    final String message = reader.readLine();
-                    if (message.matches(".*\\p{Cntrl}.*")) {
-                        Log.i(TAG, "Received junk: " + message);
-                    } else {
-
-                    }
-                } catch (IOException e) {
-                    updateLog("error reading: " + e.getMessage());
-                    break;
-                }
-            }
-        }
-
-        /* Call this from the main activity to shutdown the connection */
-        public void cancel() {
-            try {
-                mmSocket.close();
-            } catch (IOException e) {
-                updateLog("error when closing: " + e.getMessage());
-            }
+            device.gatConnect();
         }
     }
 }
