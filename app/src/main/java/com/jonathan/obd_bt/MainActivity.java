@@ -540,12 +540,16 @@ public class MainActivity extends AppCompatActivity {
                             Log.i(TAG, "received:" + s);
                             String[] lines = s.trim().split("\\r\\n|\\n|\\r");
                             for (String line : lines) {
-                                String[] pieces = line.split(",");
-                                if (pieces.length != 3) {
-                                    lineBuffer = line;
-                                    continue;
+                                if (line.matches("(OBD|GPS|MEMS|SD) (.*)")) {
+                                    receivedLine("0,"+line.replace(' ',','));
+                                } else {
+                                    String[] pieces = line.split(",");
+                                    if (pieces.length != 3) {
+                                        lineBuffer = line;
+                                        continue;
+                                    }
+                                    receivedLine(line);
                                 }
-                                receivedLine(line);
                             }
                         }
                     }
