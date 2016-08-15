@@ -304,7 +304,19 @@ public class MainActivity extends AppCompatActivity {
             // AxisDependency.LEFT);
         }
     }
-
+    protected  void updateLog(final String msg, final boolean addNewLine) {
+        runOnUiThread(new Runnable() {
+            @Override
+            public void run() {
+                synchronized (mTextView) {
+                    mTextView.append(msg);
+                    if(addNewLine)
+                        mTextView.append("\n");
+                    mScroll.fullScroll(ScrollView.FOCUS_DOWN);
+                }
+            }
+        });
+    }
     protected void updateLog(final String msg) {
         runOnUiThread(new Runnable() {
             @Override
@@ -452,7 +464,7 @@ public class MainActivity extends AppCompatActivity {
         private class ConnectThreadGatt extends Thread {
             private BluetoothGatt mBluetoothGatt;
             private final BluetoothDevice mBluetoothDevice;
-            private String lineBuffer = null;
+            private StringBuffer lineBuffer = new StringBuffer();
             private BluetoothGattCharacteristic mSCharacteristic,
                     mModelNumberCharacteristic,
                     mSerialPortCharacteristic,
@@ -524,35 +536,35 @@ public class MainActivity extends AppCompatActivity {
                 }
 
                 @Override
-                public void onCharacteristicChanged(BluetoothGatt gatt, BluetoothGattCharacteristic characteristic) {
-                    byte[] data = characteristic.getValue();
-                    if (data != null && data.length > 0) {
-                        String s = new String(data);
-//                        Log.i(TAG, "Characteristic Changed to "+ s);
+                public synchronized void onCharacteristicChanged(final BluetoothGatt gatt,final BluetoothGattCharacteristic characteristic) {
 
-                        if (!characteristic.getUuid().equals(SerialPortUUID) && mConnected) {
-                            gatt.setCharacteristicNotification(characteristic, false);
-                        } else {
-                            if (lineBuffer != null) {
-                                s = lineBuffer + s;
-                                lineBuffer = null;
-                            }
-                            Log.i(TAG, "received:" + s);
-                            String[] lines = s.trim().split("\\r\\n|\\n|\\r");
-                            for (String line : lines) {
-                                if (line.matches("(OBD|GPS|MEMS|SD) (.*)")) {
-                                    receivedLine("0,"+line.replace(' ',','));
+                        byte[] data = characteristic.getValue();
+                        if (data != null && data.length > 0) {
+                            String s = new String(data);
+//                            Log.i(TAG, String.format("Received: [%s]", s) );
+                            if (!characteristic.getUuid().equals(SerialPortUUID) && mConnected) {
+                                gatt.setCharacteristicNotification(characteristic, false);
+                            } else {
+                                s = s.replace("\r", "").replace("\n","");
+                                lineBuffer.append(s);
+//                                System.out.println("Buffer has: "+lineBuffer.toString());
+                                s = lineBuffer.toString();
+                                lineBuffer.setLength(0);
+                                if(!s.endsWith("!")) {
+                                    lineBuffer.append(s);
                                 } else {
-                                    String[] pieces = line.split(",");
-                                    if (pieces.length != 3) {
-                                        lineBuffer = line;
-                                        continue;
+                                    // split on \r\n and process all
+                                    for (String line : s.split("!")) {
+                                        if (line.matches("(OBD|GPS|MEMS|SD|FILE) (.*)")) {
+                                            receivedLine("0," + line.replace(' ', ','));
+                                        } else {
+                                            receivedLine(line);
+                                        }
                                     }
-                                    receivedLine(line);
                                 }
                             }
                         }
-                    }
+
 
                 }
 
@@ -580,7 +592,11 @@ public class MainActivity extends AppCompatActivity {
 
             private void receivedLine(final String message) {
                 final String[] pieces = message.split(",");
-//                Log.i(TAG, String.format("Parsing (len: %d) %s #", message.length(), message));
+                if(pieces.length < 3) {
+                    Log.i(TAG, "Bad message: "+message);
+                    return;
+                }
+//                Log.i(TAG, String.format("Parsing %s #", message));
                 if (pieces[1].matches("(OBD|GPS|SD)")) {
                     runOnUiThread(new Runnable() {
 
