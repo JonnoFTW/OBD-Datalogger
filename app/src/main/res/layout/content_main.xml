@@ -4,26 +4,9 @@
     xmlns:tools="http://schemas.android.com/tools"
     android:layout_width="match_parent"
     android:layout_height="match_parent"
-    android:paddingBottom="@dimen/activity_vertical_margin"
-    android:paddingLeft="@dimen/activity_horizontal_margin"
-    android:paddingRight="@dimen/activity_horizontal_margin"
-    android:paddingTop="@dimen/activity_vertical_margin"
     app:layout_behavior="@string/appbar_scrolling_view_behavior"
     tools:context="com.jonathan.obd_bt.MainActivity"
     tools:showIn="@layout/activity_main">
-
-    <ScrollView
-        android:id="@+id/scroll"
-        android:layout_width="match_parent"
-        android:layout_height="match_parent"
-        android:fillViewport="true">
-
-        <TextView
-            android:id="@+id/tv_log"
-            android:layout_width="wrap_content"
-            android:layout_height="wrap_content"
-            android:text="" />
-    </ScrollView>
 
     <com.github.mikephil.charting.charts.LineChart
         android:id="@+id/chart"
@@ -31,32 +14,84 @@
         android:layout_height="match_parent"
         android:visibility="gone" />
 
-    <LinearLayout
+    <RelativeLayout
+        android:id="@+id/notchart"
+        android:layout_width="match_parent"
+        android:layout_height="match_parent">
+
+        <LinearLayout
+            android:layout_width="match_parent"
+            android:layout_height="match_parent"
+            android:orientation="vertical"
+            android:weightSum="3">
+
+            <ScrollView
+                android:id="@+id/top_scroll"
+                android:layout_width="match_parent"
+                android:layout_height="match_parent"
+                android:layout_weight="1"
+                android:background="@android:drawable/dialog_holo_light_frame"
+                android:fillViewport="true">
+
+                <LinearLayout
+                    android:id="@+id/value_texts"
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:orientation="vertical"
+
+                    android:paddingEnd="4dp"
+                    android:paddingStart="4dp">
+
+                    <TextView
+                        android:id="@+id/placeholder"
+                        android:layout_width="match_parent"
+                        android:layout_height="match_parent"
+                        android:layout_gravity="center_vertical"
+                        android:text="@string/not_connected_placeholder"
+                        android:textAlignment="center"
+
+                        android:textColor="#aa000000"
+                        android:textSize="20sp" />
+                </LinearLayout>
+            </ScrollView>
+
+            <ScrollView
+                android:id="@+id/scroll"
+                android:layout_width="match_parent"
+                android:layout_height="match_parent"
+                android:layout_weight="2"
+                android:background="@android:drawable/dialog_holo_light_frame"
+
+                android:elevation="2dp"
+                android:fillViewport="true">
+
+                <TextView
+                    android:id="@+id/tv_log"
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:paddingBottom="4dp"
+                    android:paddingEnd="4dp"
+                    android:paddingStart="4dp"
+                    android:paddingTop="4dp"
+                    android:text="" />
+            </ScrollView>
+
+        </LinearLayout>
+
+
+    </RelativeLayout>
+
+    <com.dmallcott.progressfloatingactionbutton.ProgressFloatingActionButton
+        android:id="@+id/downloadProgress"
         android:layout_width="wrap_content"
-        android:background="@color/colorPrimaryDark"
-        android:layout_alignParentRight="true"
-        android:layout_alignParentBottom="true"
-        android:orientation="vertical"
         android:layout_height="wrap_content"
-        android:padding="5dp"
-        android:layout_margin="5dp">
-        <TextView
-            android:layout_width="wrap_content"
-            android:layout_height="wrap_content"
-            android:text="GPS: "
-            android:textColor="#fefefe"
-            android:id="@+id/gps_status"/>
-        <TextView
-            android:layout_width="wrap_content"
-            android:layout_height="wrap_content"
-            android:textColor="#fefefe"
-            android:text="OBD: "
-            android:id="@+id/obd_status"/>
-        <TextView
-            android:layout_width="wrap_content"
-            android:layout_height="wrap_content"
-            android:textColor="#fefefe"
-            android:text="SD: "
-            android:id="@+id/sd_status"/>
-    </LinearLayout>
+        android:layout_alignParentBottom="true"
+        android:layout_alignParentEnd="true"
+        android:clickable="false"
+        android:visibility="gone"
+        app:pFabProgressIcon="@drawable/ic_file_download_black_24dp"
+        app:pFabFinalIcon="@drawable/ic_file_download_black_24dp"
+        app:pFabStartingProgress="0"
+        app:pFabStepSize="1"
+        app:pFabTotalProgress="100"/>
 </RelativeLayout>

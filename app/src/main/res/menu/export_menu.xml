@@ -1,0 +1,19 @@
+<?xml version="1.0" encoding="utf-8"?>
+<menu xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:app="http://schemas.android.com/apk/res-auto"
+    xmlns:tools="http://schemas.android.com/tools"
+    tools:context="com.jonathan.obd_bt.ExportActivity">
+    <item
+        android:id="@+id/select_all"
+        android:icon="@drawable/ic_select_all_white_36dp"
+        android:title="@string/select_all"
+        android:onClick="selectAll"
+        app:showAsAction="always" />
+
+    <item
+        android:id="@+id/action_delete"
+        android:icon="@drawable/ic_delete_forever_white_36dp"
+        android:title="@string/delete_selected"
+        android:onClick="deleteSelected"
+        app:showAsAction="always" />
+</menu>

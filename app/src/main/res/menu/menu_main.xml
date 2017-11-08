@@ -5,27 +5,36 @@
     <item
         android:id="@+id/numberSpinner"
         android:actionLayout="@layout/spin_number"
-        android:title="Output"
+        android:title="@string/output"
+        android:icon="@drawable/ic_show_chart_white_36dp"
         app:showAsAction="always">
         <menu>
 
         </menu>
     </item>
     <item
-        android:id="@+id/action_export"
-        android:icon="@android:drawable/ic_menu_share"
-        android:title="Export"
+        android:id="@+id/action_upload"
+        android:icon="@drawable/ic_cloud_upload"
+        android:title="@string/upload"
         app:showAsAction="always" />
     <item
-        android:id="@+id/action_stop"
-        android:icon="@android:drawable/ic_menu_close_clear_cancel"
-        android:orderInCategory="100"
-        android:title="@string/action_stop"
+        android:id="@+id/action_export"
+        android:icon="@drawable/ic_file_download_black_24dp"
+        android:title="@string/export"
         app:showAsAction="always" />
+
     <item
         android:id="@+id/action_connect"
-        android:icon="@android:drawable/ic_menu_view"
+        android:icon="@drawable/ic_bluetooth_black_24dp"
         android:orderInCategory="100"
         android:title="@string/action_settings"
         app:showAsAction="always" />
+    <item android:id="@+id/action_preferences"
+        android:icon="@drawable/ic_settings"
+        app:showAsAction="collapseActionView"
+        android:title="Preferences" />
+    <item android:id="@+id/action_send_msg"
+        android:icon="@drawable/ic_settings"
+        app:showAsAction="collapseActionView"
+        android:title="@string/send_msg" />
 </menu>
