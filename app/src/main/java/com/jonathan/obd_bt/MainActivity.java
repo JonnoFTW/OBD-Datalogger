@@ -820,7 +820,6 @@ public class MainActivity extends AppCompatActivity {
             // send $login=password
             try {
                 updateLog("Logging in");
-                // TODO: Get the super secret password from a config, not right here in the source
                 SharedPreferences prefs = getSharedPreferences(BLUETOOTH_KEYS, 0);
                 String password = prefs.getString(mmSocket.getRemoteDevice().getAddress(), "secret_password_here");
 
@@ -901,10 +900,15 @@ public class MainActivity extends AppCompatActivity {
                                 continue;
                             }
                             int fallback = -2555;
+                            final double dataDouble = json.optDouble(key, -255);
                             final int data = json.optInt(key, fallback);
 
                             if (data != fallback) {
-                                updateOBD(latestTv, String.format("%s: %d", key, data));
+                                if (dataDouble != -255) {
+                                    updateOBD(latestTv, String.format("%s: %.2f", key, dataDouble));
+                                } else {
+                                    updateOBD(latestTv, String.format("%s: %d", key, data));
+                                }
                                 final List<Integer> dataList = mODBData.get(key);
                                 if (!isListing) {
                                     dataList.add(data);
@@ -973,7 +977,7 @@ public class MainActivity extends AppCompatActivity {
                     try {
                         fileOutputStream = new FileOutputStream(outFile);
                         int written = 0;
-//                        resetDownloadFab(byte_count);
+                        resetDownloadFab(byte_count);
                         StringBuffer sb = new StringBuffer(byte_count);
                         while (true) {
                             final String line = reader.readLine();
@@ -986,12 +990,12 @@ public class MainActivity extends AppCompatActivity {
                                 written += toWrite.getBytes().length;
                                 sb.append(toWrite);
                                 final int finalWritten = written;
-//                                runOnUiThread(new Runnable() {
-//                                    @Override
-//                                    public void run() {
-//                                        mDownloadProg.setCurrentProgress(finalWritten, true);
-//                                    }
-//                                });
+                                runOnUiThread(new Runnable() {
+                                    @Override
+                                    public void run() {
+                                        mDownloadProg.setCurrentProgress(finalWritten, true);
+                                    }
+                                });
                             }
                         }
 //                        System.out.println(sb.toString());
@@ -1058,7 +1062,7 @@ public class MainActivity extends AppCompatActivity {
             @Override
             public void run() {
                 slideUp(mDownloadProg);
-//                mDownloadProg.setVisibility(View.VISIBLE);
+                mDownloadProg.setVisibility(View.VISIBLE);
                 mDownloadProg.setStartingProgress(0);
                 mDownloadProg.setCurrentProgress(0, true);
                 mDownloadProg.setTotalProgress(total_bytes);

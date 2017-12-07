@@ -53,7 +53,7 @@ public class KeyAdapter extends RecyclerView.Adapter<KeyAdapter.ViewHolder> {
     Activity mContext;
 
     public KeyAdapter(Activity activity, boolean isDevice) {
-        mPrefs = activity.getSharedPreferences(isDevice?MainActivity.DEVICE_KEYS:MainActivity.BLUETOOTH_KEYS, 0);
+        mPrefs = activity.getSharedPreferences(isDevice ? MainActivity.DEVICE_KEYS : MainActivity.BLUETOOTH_KEYS, 0);
         this.isDevice = isDevice;
         mContext = activity;
         Map<String, ?> allKeys = mPrefs.getAll();
@@ -83,24 +83,26 @@ public class KeyAdapter extends RecyclerView.Adapter<KeyAdapter.ViewHolder> {
         LayoutInflater inflater = mContext.getLayoutInflater();
         View v = inflater.inflate(R.layout.key_crud_dialog, null);
         final EditText key_input = v.findViewById(R.id.key_key_input);
-        if(!isDevice) {
+        if (!isDevice) {
             key_input.setHint(R.string.bluetooth_name_hint);
         }
         final EditText value_input = v.findViewById(R.id.key_value_input);
         builder.setView(v);
         builder
-                .setTitle(existing?"Edit Key":"Add Key")
+                .setTitle(existing ? "Edit Key" : "Add Key")
                 .setPositiveButton("Save", new DialogInterface.OnClickListener() {
                     @Override
                     public void onClick(DialogInterface dialog, int which) {
                         SharedPreferences.Editor editor = mPrefs.edit();
-
-                        editor.putString(existing?data.first:key_input.getEditableText().toString(), value_input.getEditableText().toString());
+                        String key = key_input.getEditableText().toString();
+                        String value = value_input.getEditableText().toString();
+                        editor.putString(existing ? data.first : key, value);
                         editor.apply();
+                        mData.add(new Pair<>(key, value));
                         if (existing)
                             adapter.notifyItemChanged(position);
                         else
-                            adapter.notifyItemInserted(0);
+                            adapter.notifyItemInserted(mData.size());
                     }
                 })
                 .setNegativeButton("Cancel", new DialogInterface.OnClickListener() {

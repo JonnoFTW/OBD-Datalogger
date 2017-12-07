@@ -102,26 +102,34 @@ public class FileListAdapter extends RecyclerView.Adapter<FileListAdapter.ViewHo
         return vh;
     }
 
+    private static String humanReadableByteCount(long bytes, boolean si) {
+        int unit = si ? 1000 : 1024;
+        if (bytes < unit) return bytes + " B";
+        int exp = (int) (Math.log(bytes) / Math.log(unit));
+        String pre = (si ? "kMGTPE" : "KMGTPE").charAt(exp-1) + (si ? "" : "i");
+        return String.format("%.1f %sB", bytes / Math.pow(unit, exp), pre);
+    }
     // Replace the contents of a view (invoked by the layout manager)
     @Override
     public void onBindViewHolder(final ViewHolder holder, final int position) {
         // - get element from your dataset at this position
         // - replace the contents of the view with that element
         final File f = mDataset[position].mFile;
+        final int pos = holder.getAdapterPosition();
         holder.mTextView.setText(f.getName());
-        holder.mSizeView.setText(String.format("%d bytes", f.length()));
+        holder.mSizeView.setText(humanReadableByteCount(f.length(), true));
         holder.mCheckbox.setOnCheckedChangeListener(null);
         holder.mCheckbox.setChecked(mDataset[position].isSelected());
         holder.mLayout.setOnClickListener(new View.OnClickListener() {
             @Override
             public void onClick(View v) {
-                holder.mCheckbox.setChecked(!mDataset[position].isSelected());
+                holder.mCheckbox.setChecked(!mDataset[pos].isSelected());
             }
         });
         holder.mCheckbox.setOnCheckedChangeListener(new CompoundButton.OnCheckedChangeListener() {
             @Override
             public void onCheckedChanged(CompoundButton buttonView, boolean isChecked) {
-                mDataset[position].setSelected(isChecked);
+                mDataset[pos].setSelected(isChecked);
             }
         });
 
