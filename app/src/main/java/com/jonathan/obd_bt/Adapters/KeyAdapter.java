@@ -52,13 +52,32 @@ public class KeyAdapter extends RecyclerView.Adapter<KeyAdapter.ViewHolder> {
     SharedPreferences mPrefs;
     Activity mContext;
 
+    private void loadAll(Activity activity) {
+        String[] keys = new String[]{
+
+
+        }; // Preload your keys here to make it easier on yourself
+        SharedPreferences.Editor prefs = activity.getSharedPreferences(MainActivity.DEVICE_KEYS, 0).edit();
+        prefs.clear();
+        for (String s : keys) {
+            String[] pieces = s.split(" ");
+            String key = pieces[0];
+            String val = pieces[1];
+            prefs.putString(key, val);
+        }
+        prefs.apply();
+
+    }
+
     public KeyAdapter(Activity activity, boolean isDevice) {
         mPrefs = activity.getSharedPreferences(isDevice ? MainActivity.DEVICE_KEYS : MainActivity.BLUETOOTH_KEYS, 0);
         this.isDevice = isDevice;
         mContext = activity;
+//        loadAll(activity);
+
         Map<String, ?> allKeys = mPrefs.getAll();
         for (Map.Entry<String, ?> entry : allKeys.entrySet()) {
-            mData.add(new Pair<String, String>(entry.getKey(), entry.getValue().toString()));
+            mData.add(new Pair<>(entry.getKey(), entry.getValue().toString()));
         }
         Collections.sort(mData, new Comparator<Pair<String, String>>() {
             @Override
@@ -66,6 +85,7 @@ public class KeyAdapter extends RecyclerView.Adapter<KeyAdapter.ViewHolder> {
                 return o1.first.compareTo(o2.first);
             }
         });
+
     }
 
     @Override

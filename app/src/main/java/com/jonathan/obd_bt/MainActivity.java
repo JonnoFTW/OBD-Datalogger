@@ -750,9 +750,9 @@ public class MainActivity extends AppCompatActivity {
         super.onPause();  // Always call the superclass method first
 
         // if the bluetooth is running, pause it
-        if (device != null) {
-            device.cancel();
-        }
+//        if (device != null) {
+//            device.cancel();
+//        }
     }
 
     @Override
@@ -760,9 +760,9 @@ public class MainActivity extends AppCompatActivity {
         super.onResume();  // Always call the superclass method first
 
         // if the bluetooth is running, pause it
-        if (device != null) {
-            device.connect();
-        }
+//        if (device != null) {
+//            device.connect();
+//        }
     }
 
     /**

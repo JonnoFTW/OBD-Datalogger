@@ -17,6 +17,7 @@ import android.view.Menu;
 import android.view.MenuItem;
 import android.view.View;
 
+import com.dmallcott.progressfloatingactionbutton.ProgressFloatingActionButton;
 import com.jonathan.obd_bt.Adapters.FileListAdapter;
 
 import org.apache.commons.lang3.StringUtils;
@@ -49,7 +50,7 @@ public class ExportActivity extends AppCompatActivity {
     private RecyclerView.LayoutManager mLayoutManager;
     private RecyclerView mRecyclerView;
     private FileListAdapter mListAdapter;
-    private FloatingActionButton fab;
+    private ProgressFloatingActionButton fab;
     private Context mContext;
 
     @Override
@@ -59,8 +60,8 @@ public class ExportActivity extends AppCompatActivity {
         Toolbar toolbar = (Toolbar) findViewById(R.id.toolbar);
         setSupportActionBar(toolbar);
         mContext = this;
-        fab = (FloatingActionButton) findViewById(R.id.fab_upload);
-        fab.setOnClickListener(new View.OnClickListener() {
+        fab = (ProgressFloatingActionButton) findViewById(R.id.fab_upload);
+        fab.getFab().setOnClickListener(new View.OnClickListener() {
             @Override
             public void onClick(View view) {
                 Snackbar.make(view, "Uploading files", Snackbar.LENGTH_LONG)
@@ -115,47 +116,81 @@ public class ExportActivity extends AppCompatActivity {
         return buffer;
     }
 
-    private void uploadFile(ArrayList<File> files) {
+    private void uploadFile(final ArrayList<File> files) {
+        fab.getFab().setEnabled(false);
+        fab.setCurrentProgress(0, true);
+        Thread t = new Thread(new Runnable() {
+            @Override
+            public void run() {
 
-        fab.setEnabled(false);
-        SharedPreferences serverUrl = PreferenceManager.getDefaultSharedPreferences(this);
-        String server = serverUrl.getString(MainActivity.SERVER_URL, "http://56v6f22-l:6868");
-        SharedPreferences prefsKeys = getSharedPreferences(MainActivity.DEVICE_KEYS, 0);
-        String allKeys = StringUtils.join(prefsKeys.getAll().values(), ",");
-        ArrayList<Thread> threads = new ArrayList<>();
-        List<Exception> errs =  Collections.synchronizedList(new ArrayList<Exception>());
-        for (File f : files) {
-            HashMap<String, String> data = new HashMap<>();
 
-            data.put("keys", allKeys);
-            try {
+                SharedPreferences serverUrl = PreferenceManager.getDefaultSharedPreferences(mContext);
+                String server = serverUrl.getString(MainActivity.SERVER_URL, null);
+                if (server == null) {
+                    Snackbar.make(mRecyclerView, "Please set a server in settings", Snackbar.LENGTH_LONG)
+                            .setAction("Action", null).show();
+                    return;
+                }
+                SharedPreferences prefsKeys = getSharedPreferences(MainActivity.DEVICE_KEYS, 0);
+                String allKeys = StringUtils.join(prefsKeys.getAll().values(), ",");
+                ArrayList<Thread> threads = new ArrayList<>();
+                double totalBytes = 0;
+                for (File f: files) {
+                    System.out.println(f.getName());
+                    totalBytes += f.length();
+                }
 
-                byte[] gzipBytes = read(f);
-                String b64gzip = Base64.encodeToString(gzipBytes, Base64.DEFAULT);
-                data.put("data", b64gzip);
-                System.out.println("Exporting to :" + server + "/api/upload");
-                Thread t = performPostCall(server + "/api/upload", data, errs);
-                threads.add(t);
-            } catch (IOException e) {
+                double totalDone = 0;
+                List<Exception> errs = Collections.synchronizedList(new ArrayList<Exception>());
+                for (File f : files) {
+                    HashMap<String, String> data = new HashMap<>();
+
+                    data.put("keys", allKeys);
+                    try {
+
+                        byte[] gzipBytes = read(f);
+                        String b64gzip = Base64.encodeToString(gzipBytes, Base64.DEFAULT);
+                        data.put("data", b64gzip);
+                        System.out.println("Exporting to :" + server + "/api/upload "+ f.getName());
+                        Thread t = performPostCall(server + "/api/upload", data, errs);
+                        threads.add(t);
+                        t.join();
+                        totalDone += f.length();
+                        final int finalTotalDone = (int)((totalDone/ totalBytes*100));
+                        runOnUiThread(new Runnable() {
+                            @Override
+                            public void run() {
+                                System.out.println("Completed "+ finalTotalDone);
+                                fab.setCurrentProgress(finalTotalDone, true);
+                            }
+                        });
+                        String msg;
+                        if (errs.isEmpty()) {
+                            msg = "Uploaded "+f.getName();
+                        } else {
+                            msg = "There were errors: " + errs.remove(0).toString();
+                        }
+                        Snackbar.make(mRecyclerView, msg, Snackbar.LENGTH_LONG)
+                                .setAction("Action", null).show();
+
+                    } catch (IOException | InterruptedException e) {
+                        e.printStackTrace();
+                    }
+                }
+                runOnUiThread(new Runnable() {
+                    @Override
+                    public void run() {
+                        fab.getFab().setEnabled(true);
+                        fab.setCurrentProgress(0, true);
+                    }
+                });
+
 
             }
-        }
-        for (Thread t : threads) {
-            try {
-                t.join();
-            } catch (InterruptedException e) {
-                e.printStackTrace();
-            }
-        }
-        fab.setEnabled(true);
-        String msg;
-        if(errs.isEmpty()) {
-            msg = String.format("Uploaded %d files", files.size());
-        } else {
-           msg = "There were errors: "+errs.get(0).getMessage();
-        }
-        Snackbar.make(mRecyclerView, msg, Snackbar.LENGTH_LONG)
-                .setAction("Action", null).show();
+        });
+        t.start();
+
+
     }
 
 
@@ -200,6 +235,7 @@ public class ExportActivity extends AppCompatActivity {
                     while ((line = br.readLine()) != null) {
                         response += line;
                     }
+                    System.out.println(response);
                     if (responseCode != HttpsURLConnection.HTTP_OK) {
                         errs.add(new Exception(response));
                     }

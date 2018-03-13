@@ -24,12 +24,15 @@
 
     <include layout="@layout/content_export" />
 
-    <android.support.design.widget.FloatingActionButton
+    <com.dmallcott.progressfloatingactionbutton.ProgressFloatingActionButton
         android:id="@+id/fab_upload"
         android:layout_width="wrap_content"
         android:layout_height="wrap_content"
         android:layout_gravity="bottom|end"
         android:layout_margin="@dimen/fab_margin"
-        app:srcCompat="@drawable/ic_cloud_upload" />
+        app:pFabProgressIcon="@drawable/ic_cloud_upload"
+        app:pFabStartingProgress="0"
+        app:pFabStepSize="1"
+        app:pFabTotalProgress="100" />
 
 </android.support.design.widget.CoordinatorLayout>
